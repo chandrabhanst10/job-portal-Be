@@ -10,11 +10,12 @@ import jobRouter from "./Routes/JobRoutes.js";
 import applicationRouter from "./Routes/ApplicationRoutes.js";
 
 const app = express();
-app.use(cors({
-    origin: "*", 
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
-    credentials: true
-}));
+app.use(cors());
+// app.use(cors({
+//     origin: "*", 
+//     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+//     credentials: true
+// }));
 app.options('*', cors()); 
 app.use(cookieParser())
 app.use(express.json());
