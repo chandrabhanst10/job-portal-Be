@@ -16,7 +16,7 @@ app.use(cors());
 //     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
 //     credentials: true
 // }));
-app.options('*', cors()); 
+// app.options('*', cors()); 
 app.use(cookieParser())
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
