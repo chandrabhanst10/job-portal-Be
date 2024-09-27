@@ -11,7 +11,8 @@ import applicationRouter from "./Routes/ApplicationRoutes.js";
 
 const app = express();
 app.use(cors({
-    origin: ["https://job-smasher.netlify.app","http://localhost:3000","http://localhost:3001"], 
+    // origin: ["https://job-smasher.netlify.app","http://localhost:3000","http://localhost:3001"], 
+    origin: "https://job-smasher.netlify.app",
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
     credentials: true
 }));
