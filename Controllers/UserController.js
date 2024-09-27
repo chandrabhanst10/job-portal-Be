@@ -141,8 +141,10 @@ export const Login = CatchAsyncErrors(async (req, res, next) => {
 
 export const Logout = CatchAsyncErrors(async (req, res, next) => {
   const options = {
-    expires: new Date(Date.now()),
-    httpOnly: true
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production", // Secure true in production
+    sameSite: "None", // Required for cross-origin cookies
+    maxAge: 24 * 60 * 60 * 1000 // 1 day
   }
   res.status(200).cookie("token", "", options).json({
     success: true,
