@@ -265,3 +265,13 @@ export const UpdatePassword = CatchAsyncErrors(async (req, res, next) => {
   })
 });
 
+export const CheckToken = CatchAsyncErrors(async (req, res, next) => {
+  const token = req.cookies.token;
+
+    // Check if token exists
+    if (token) {
+        res.status(200).json({ success: true, message: 'Token is available', token:true });
+    } else {
+        res.status(401).json({ success: false, message: 'Token is not available', token:false });
+    }
+});
