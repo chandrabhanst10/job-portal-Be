@@ -8,7 +8,6 @@ export const PostApplication = CatchAsyncErrors(async (req, res, next) => {
     const { id } = req.params
 
     const { name, email, phone, address, coverLetter, resume } = req.body;
-    console.log(req.body);
     
     if (!name || !email || !phone || !address) {
         return next(new ErrorHandler("All fields are required", 400))
@@ -19,7 +18,6 @@ export const PostApplication = CatchAsyncErrors(async (req, res, next) => {
         email,
         phone,
         address,
-        coverLetter,
         resume,
         role: req.user.role
     }
@@ -41,8 +39,9 @@ export const PostApplication = CatchAsyncErrors(async (req, res, next) => {
             try {
                 const cloudinaryResponse = await cloudinary.uploader.upload(
                     resume.tempFilePath,
-                    { folder: "Job_Seekers_Resume" }
+                    { folder: "Job_Seekers_Resume", }
                 );
+                
                 if (!cloudinaryResponse || cloudinaryResponse.error) {
                     return next(
                         new ErrorHandler("Failed to upload resume to cloud.", 500)
@@ -66,6 +65,37 @@ export const PostApplication = CatchAsyncErrors(async (req, res, next) => {
             url: req.user && req.user.resume.url,
         }
     }
+    if (req.files && req.files.coverLetter) {
+        const { coverLetter } = req.files;
+        if (coverLetter) {
+            try {
+                const cloudinaryResponse = await cloudinary.uploader.upload(
+                    coverLetter.tempFilePath,
+                    { folder: "Job_Seekers_CoverLetter" }
+                );
+                if (!cloudinaryResponse || cloudinaryResponse.error) {
+                    return next(
+                        new ErrorHandler("Failed to upload coverLetter to cloud.", 500)
+                    );
+                }
+                jobSeekerInfo.coverLetter = {
+                    public_id: cloudinaryResponse.public_id,
+                    url: cloudinaryResponse.secure_url,
+                };
+
+
+            } catch (error) {
+                return next(new ErrorHandler("Failed to upload coverLetter", 500));
+            }
+        }
+    } else if (req.user && !req.user.coverLetter.url) {
+        return next(new ErrorHandler("Please go to your profile and upload coverLetter", 400))
+    } else {
+        jobSeekerInfo.coverLetter = {
+            public_id: req.user && req.user.coverLetter.public_id,
+            url: req.user && req.user.coverLetter.url,
+        }
+    }
     const employerInfo = {
         id: jobDetails.postedBy,
         role: "Employer"
@@ -76,8 +106,7 @@ export const PostApplication = CatchAsyncErrors(async (req, res, next) => {
         jobTitle: jobDetails.title
 
     }
-    console.log("@@@@@", jobInfo);
-
+    
     const application = await Application.create({
         jobSeekerInfo,
         employerInfo,

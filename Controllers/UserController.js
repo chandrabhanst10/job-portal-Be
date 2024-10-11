@@ -4,7 +4,7 @@ import { User } from "../Models/UserSchema.js";
 import { v2 as cloudinary } from "cloudinary";
 import { Token } from '../Utils/Token.js'
 
-export const Register = CatchAsyncErrors(async (req, res, next) => {  
+export const Register = CatchAsyncErrors(async (req, res, next) => {
   try {
     const {
       name,
@@ -17,7 +17,8 @@ export const Register = CatchAsyncErrors(async (req, res, next) => {
       secondNiche,
       thirdNiche,
     } = req.body;
-    
+    let userData = {}
+
     if (!name || !email || !phone || !address || !password || !role) {
       return next(new ErrorHandler("All fileds are required.", 400));
     }
@@ -31,7 +32,7 @@ export const Register = CatchAsyncErrors(async (req, res, next) => {
     if (existingUser) {
       return next(new ErrorHandler("Email is already registered.", 400));
     }
-    const userData = {
+    userData = {
       name,
       email,
       phone,
@@ -54,58 +55,66 @@ export const Register = CatchAsyncErrors(async (req, res, next) => {
         url: "",
       }
     };
-    if (req.files && req.files.resume) {
-      const { resume } = req.files;
-      if (resume) {
-        try {
-          const cloudinaryResponse = await cloudinary.uploader.upload(
-            resume.tempFilePath,
-            { folder: "Job_Seekers_Resume" }
-          );
-          if (!cloudinaryResponse || cloudinaryResponse.error) {
-            return next(
-              new ErrorHandler("Failed to upload resume to cloud.", 500)
-            );
+
+    if (role === "Job Seeker") {
+      try {
+        
+        if (req?.files && req?.files?.resume) {
+          const { resume } = req?.files;
+          if (resume) {
+            try {
+              const cloudinaryResponse = await cloudinary?.uploader?.upload(
+                resume?.tempFilePath,
+                { folder: "Job_Seekers_Resume" }
+              );
+              if (!cloudinaryResponse || cloudinaryResponse?.error) {
+                return next(
+                  new ErrorHandler("Failed to upload resume to cloud?.", 500)
+                );
+              }
+              userData.resume = {
+                name: resume?.name,
+                public_id: cloudinaryResponse?.public_id,
+                url: cloudinaryResponse?.secure_url,
+              };
+            } catch (error) {
+              return res?.send(error)
+              return next(new ErrorHandler(error?.message, 500));
+            }
           }
-          userData.resume = {
-            name: resume.name,
-            public_id: cloudinaryResponse.public_id,
-            url: cloudinaryResponse.secure_url,
-          };
-
-
-        } catch (error) {
-          return next(new ErrorHandler("Failed to upload resume", 500));
         }
-      }
-    }
-    if (req.files && req.files.coverLetter) {
-      const { coverLetter } = req.files;
-      if (coverLetter) {
-        try {
-          const cloudinaryResponse = await cloudinary.uploader.upload(
-            coverLetter.tempFilePath,
-            { folder: "Job_Seekers_coverLetter" }
-          );
-          if (!cloudinaryResponse || cloudinaryResponse.error) {
-            return next(
-              new ErrorHandler("Failed to upload coverLetter to cloud.", 500)
-            );
+        if (req?.files && req?.files?.coverLetter) {
+          const { coverLetter } = req?.files;
+          if (coverLetter) {
+            try {
+              const cloudinaryResponse = await cloudinary.uploader.upload(
+                coverLetter?.tempFilePath,
+                { folder: "Job_Seekers_CoverLetter" }
+              );
+              if (!cloudinaryResponse || cloudinaryResponse?.error) {
+                return next(
+                  new ErrorHandler("Failed to upload coverLetter to cloud.", 500)
+                );
+              }
+              userData.coverLetter = {
+                name: coverLetter?.name,
+                public_id: cloudinaryResponse?.public_id,
+                url: cloudinaryResponse?.secure_url,
+              };
+            } catch (error) {
+              return next(new ErrorHandler("Failed to upload coverLetter", 500));
+            }
           }
-          userData.coverLetter = {
-            name: coverLetter.name,
-            public_id: cloudinaryResponse.public_id,
-            url: cloudinaryResponse.secure_url,
-          };
-
-
-        } catch (error) {
-          return next(new ErrorHandler("Failed to upload coverLetter", 500));
         }
-      }
+        const user = await User.create(userData);
+        Token(user, 200, res, "User Registered")
+    } catch (error) {
+        return next(new ErrorHandler(error.message, 500));
     }
-    const user = await User.create(userData);
-    Token(user, 200, res, "User Registered")
+    } else {
+      const user = await User.create(userData);
+      Token(user, 200, res, "User Registered")
+    }
   } catch (error) {
     next(error);
   }
@@ -118,7 +127,6 @@ export const Login = CatchAsyncErrors(async (req, res, next) => {
       password,
       role
     } = req.body;
-
     if (!email || !password || !role) {
       return next(new ErrorHandler("All fileds are required.", 400));
     }
@@ -141,10 +149,10 @@ export const Login = CatchAsyncErrors(async (req, res, next) => {
 
 export const Logout = CatchAsyncErrors(async (req, res, next) => {
   const options = {
+    expires: new Date(Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production", // Secure true in production
-    sameSite: "None", // Required for cross-origin cookies
-    maxAge: 24 * 60 * 60 * 1000 // 1 day
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'Lax'
   }
   res.status(200).cookie("token", "", options).json({
     success: true,
@@ -161,92 +169,89 @@ export const GetUserProfile = CatchAsyncErrors(async (req, res, next) => {
 });
 
 export const UpdateProfile = CatchAsyncErrors(async (req, res, next) => {
-  const newUserData = {
-    name: req.body.name,
-    email: req.body.email,
-    phone: req.body.phone,
-    address: req.body.address,
-    role: req.user.role,
-    niches: {
-      firstNiche: req.body.firstNiche,
-      secondNiche: req.body.secondNiche,
-      thirdNiche: req.body.thirdNiche,
-    },
-  }
-  const { firstNiche, secondNiche, thirdNiche } = newUserData.niches
-  if (req.user.role === "Job Seeker" && (!firstNiche || !secondNiche || !thirdNiche)) {
-    return next(new ErrorHandler("Please select Niches", 401));
-  }
-  if (req.files) {
-    const { resume } = req.files;
-    const { coverLetter } = req.files;
-    console.log(req.files);
-
-    if (resume) {
-      const currentResume = req.user.resume.public_id;
-      if (currentResume) {
-        await cloudinary.uploader.destroy(currentResume)
-      }
-
-      try {
-        const cloudinaryResponse = await cloudinary.uploader.upload(
-          resume.tempFilePath,
-          { folder: "Job_Seekers_Resume" }
-        );
-        if (!cloudinaryResponse || cloudinaryResponse.error) {
-          return next(
-            new ErrorHandler("Failed to upload resume to cloud.", 500)
-          );
-        }
-        newUserData.resume = {
-          name: resume.name,
-          public_id: cloudinaryResponse.public_id,
-          url: cloudinaryResponse.secure_url,
-        };
-
-
-      } catch (error) {
-        return next(new ErrorHandler("Failed to upload resume", 500));
-      }
-    }
-    if (coverLetter) {
-      
-      const currentcoverLetter = req.user.coverLetter.public_id;
-      if (currentcoverLetter) {
-        await cloudinary.uploader.destroy(currentcoverLetter)
-      }
-
-      try {
-        const cloudinaryResponse = await cloudinary.uploader.upload(
-          coverLetter.tempFilePath,
-          { folder: "Job_Seekers_Cover_Latter" }
-        );
-        if (!cloudinaryResponse || cloudinaryResponse.error) {
-          return next(
-            new ErrorHandler("Failed to upload coverLetter to cloud.", 500)
-          );
-        }
-        newUserData.coverLetter = {
-          name: coverLetter.name,
-          public_id: cloudinaryResponse.public_id,
-          url: cloudinaryResponse.secure_url,
-        };
-
-
-      } catch (error) {
-        return next(new ErrorHandler("Failed to upload coverLetter", 500));
-      }
-    }
-  }
-  // console.log(newUserData);
-  // console.log(req.user);
+  console.log("@@@@@@ role",req.user.role);
   
-  const user = await User.findByIdAndUpdate(req.user.id, newUserData, { new: true, runValidators: true, useFindAndModify: false })
-  res.status(200).json({
-    success: true,
-    user: user,
-    message: "User data updates successfully"
-  })
+  // const newUserData = {
+  //   name: req.body.name,
+  //   email: req.body.email,
+  //   phone: req.body.phone,
+  //   address: req.body.address,
+  //   role: req.user.role,
+  //   niches: {
+  //     firstNiche: req.body.firstNiche,
+  //     secondNiche: req.body.secondNiche,
+  //     thirdNiche: req.body.thirdNiche,
+  //   },
+  // }
+  // const { firstNiche, secondNiche, thirdNiche } = newUserData.niches
+  // if (req.user.role === "Job Seeker" && (!firstNiche || !secondNiche || !thirdNiche)) {
+  //   return next(new ErrorHandler("Please select Niches", 401));
+  // }
+  // if (req.files) {
+  //   const { resume } = req.files;
+  //   const { coverLetter } = req.files;
+  //   if (resume) {
+  //     const currentResume = req.user.resume.public_id;
+  //     if (currentResume) {
+  //       await cloudinary.uploader.destroy(currentResume)
+  //     }
+
+  //     try {
+  //       const cloudinaryResponse = await cloudinary.uploader.upload(
+  //         resume.tempFilePath,
+  //         { folder: "Job_Seekers_Resume" }
+  //       );
+  //       if (!cloudinaryResponse || cloudinaryResponse.error) {
+  //         return next(
+  //           new ErrorHandler("Failed to upload resume to cloud.", 500)
+  //         );
+  //       }
+  //       newUserData.resume = {
+  //         name: resume.name,
+  //         public_id: cloudinaryResponse.public_id,
+  //         url: cloudinaryResponse.secure_url,
+  //       };
+
+
+  //     } catch (error) {
+  //       return next(new ErrorHandler("Failed to upload resume", 500));
+  //     }
+  //   }
+  //   if (coverLetter) {
+
+  //     const currentcoverLetter = req.user.coverLetter.public_id;
+  //     if (currentcoverLetter) {
+  //       await cloudinary.uploader.destroy(currentcoverLetter)
+  //     }
+
+  //     try {
+  //       const cloudinaryResponse = await cloudinary.uploader.upload(
+  //         coverLetter.tempFilePath,
+  //         { folder: "Job_Seekers_Cover_Latter" }
+  //       );
+  //       if (!cloudinaryResponse || cloudinaryResponse.error) {
+  //         return next(
+  //           new ErrorHandler("Failed to upload coverLetter to cloud.", 500)
+  //         );
+  //       }
+  //       newUserData.coverLetter = {
+  //         name: coverLetter.name,
+  //         public_id: cloudinaryResponse.public_id,
+  //         url: cloudinaryResponse.secure_url,
+  //       };
+
+
+  //     } catch (error) {
+  //       return next(new ErrorHandler("Failed to upload coverLetter", 500));
+  //     }
+  //   }
+  // }
+  // const user = await User.findByIdAndUpdate(req.user.id, newUserData, { new: true, runValidators: true, useFindAndModify: false })
+  // res.status(200).json({
+  //   success: true,
+  //   user: user,
+  //   message: "User data updates successfully"
+  // })
 });
 
 export const UpdatePassword = CatchAsyncErrors(async (req, res, next) => {
@@ -267,11 +272,36 @@ export const UpdatePassword = CatchAsyncErrors(async (req, res, next) => {
 
 export const CheckToken = CatchAsyncErrors(async (req, res, next) => {
   const token = req.cookies.token;
-
-    // Check if token exists
-    if (token) {
-        res.status(200).json({ success: true, message: 'Token is available', token:true });
-    } else {
-        res.status(401).json({ success: false, message: 'Token is not available', token:false });
+  // Check if token exists
+  if (token && req.user) {
+    res.status(200).json({ success: true, message: 'Token is available', token: true });
+  } else {
+    const options = {
+      expires: new Date(Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000),
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Lax'
     }
+    res.status(404).cookie("token", "", options).json({ success: false, message: 'Token is not available', token: false });
+  }
 });
+
+export const GetAllUsers = CatchAsyncErrors(async (req, res, next) => {
+  let users = await User.find({})
+  if(users.length>0){
+    res.status(200).json({ success: true, users:users});
+  }else{
+    res.status(404).json({ success: false, message: "No users found"});
+  }
+});
+
+export const DeleteUser = CatchAsyncErrors(async (req, res, next) => {
+  let user = await User.findById({_id:req.params.id})
+  if (user) {
+    await User.findByIdAndDelete({ _id: req.params.id })
+    return res.status(200).json({ success: true, message: "User deleted successfully" })
+  } else {
+    return res.status(200).json({ success: false, message: "User Not Found" })
+  }
+});
+

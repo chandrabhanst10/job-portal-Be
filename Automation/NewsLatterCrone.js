@@ -4,7 +4,6 @@ import { User } from '../Models/UserSchema.js'
 import { SendMail } from '../Utils/SendMail.js'
 export const NewsLatterCrone = () => {
     crone.schedule("*/1 * * * *", async () => {
-        console.log("running automation");
         const jobs = await Jobs.find({ newsLettersSent: false });
         for (let job of jobs) {
             try {
@@ -27,7 +26,6 @@ export const NewsLatterCrone = () => {
                 job.newsLettersSent= true;
                 await job.save();
             } catch (error) {
-                console.log("ERROR IN NODE CRON CATCH BLOCK");
                 return next
             }
         }

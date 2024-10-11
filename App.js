@@ -8,6 +8,7 @@ import fileUpload from "express-fileupload";
 import { ErrorMiddleware } from "./Middlewares/ErrorHandler.js";
 import jobRouter from "./Routes/JobRoutes.js";
 import applicationRouter from "./Routes/ApplicationRoutes.js";
+import paymentRouter from "./Routes/PaymentsRoutes.js";
 
 const app = express();
 app.use(cors({
@@ -23,11 +24,13 @@ app.use(express.urlencoded({ extended: true }));
 app.use(urlencoded({ extended: true }))
 app.use(fileUpload({
     useTempFiles:true,
-    tempFileDir:""
+    // tempFileDir:""
 }))
+
 app.use("/api/user",router);
 app.use("/api/jobs",jobRouter);
 app.use("/api/application",applicationRouter);
+app.use("/api/payments",paymentRouter);
 app.use(ErrorMiddleware)
 config({ path: "./Config/config.env" })
 export default app;
